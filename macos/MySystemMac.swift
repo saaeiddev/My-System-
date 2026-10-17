@@ -440,14 +440,14 @@ struct Sparkline: View {
         GeometryReader { size in
             ZStack {
                 Path { path in
-                    path.move(to: CGPoint(x: 0, y: size.height))
-                    path.addLine(to: CGPoint(x: size.width, y: size.height))
+                    path.move(to: CGPoint(x: 0, y: size.size.height))
+                    path.addLine(to: CGPoint(x: size.size.width, y: size.size.height))
                 }.stroke(.white.opacity(0.10), lineWidth: 1)
                 if values.count > 1 {
                     Path { path in
                         for (index, raw) in values.enumerated() {
-                            let y = size.height * (1 - min(100, max(0, raw)) / 100)
-                            let x = size.width * CGFloat(index) / CGFloat(values.count - 1)
+                            let y = size.size.height * (1 - min(100, max(0, raw)) / 100)
+                            let x = size.size.width * CGFloat(index) / CGFloat(values.count - 1)
                             if index == 0 { path.move(to: CGPoint(x: x, y: y)) }
                             else { path.addLine(to: CGPoint(x: x, y: y)) }
                         }

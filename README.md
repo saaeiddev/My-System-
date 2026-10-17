@@ -13,7 +13,7 @@ My System has two platform-specific desktop applications in **this same reposito
 | Platform | Native UI / telemetry | Download | Full sources |
 | --- | --- | --- | --- |
 | **Windows 11 x64** | C#/.NET, WinUI 3, Windows performance counters, optional LibreHardwareMonitor and PresentMon | [Windows installer (EXE)](https://github.com/saaeiddev/My-System-/releases/download/v0.1.0-build.5/MySystem-Setup.exe) or [Windows releases](https://github.com/saaeiddev/My-System-/releases) | [src/](src/), [build/](build/), [installer/](installer/) |
-| **macOS Apple Silicon (M1 Pro, arm64)** | SwiftUI, native Mach/BSD metrics, Metal identification and embedded WebKit/Three.js | [MySystem-macOS-arm64.dmg](https://github.com/saaeiddev/My-System-/releases/download/v0.2.0-macos-build.2/MySystem-macOS-arm64.dmg) or [macOS ZIP](https://github.com/saaeiddev/My-System-/releases/download/v0.2.0-macos-build.2/MySystem-macOS-arm64.zip) | [macos/](macos/), [full macOS source manifest](documentation/MACOS_SOURCE_MANIFEST.md) |
+| **macOS Apple Silicon (M1 Pro, arm64)** | SwiftUI + SceneKit 3D, native Mach/BSD metrics and Metal device info | [MySystem-macOS-arm64.dmg](https://github.com/saaeiddev/My-System-/releases/download/v0.2.0-macos-build.2/MySystem-macOS-arm64.dmg) or [macOS ZIP](https://github.com/saaeiddev/My-System-/releases/download/v0.2.0-macos-build.2/MySystem-macOS-arm64.zip) | [macos/](macos/), [full macOS source manifest](documentation/MACOS_SOURCE_MANIFEST.md) |
 
 For Apple Silicon installation details, build requirements, telemetry coverage, unsigned-app warnings, and limitations, see **[macOS README](macos/README.md)**.
 

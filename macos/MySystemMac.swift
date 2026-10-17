@@ -130,6 +130,8 @@ final class SystemMonitor: ObservableObject {
     @Published var snapshot = SystemSnapshot()
     @Published var cpuHistory = [Double]()
     @Published var memoryHistory = [Double]()
+    @Published var cpuSamplingStatus = "Collecting CPU samples…"
+    @Published var cpuSampleCount = 0
     private var timer: Timer?
     private var previousTicks: [UInt64]?
     private var previousNetwork: (UInt64, UInt64, Date)?
@@ -148,9 +150,11 @@ final class SystemMonitor: ObservableObject {
                 let delta = zip(ticks, previous).map { $0 >= $1 ? $0 - $1 : 0 }
                 let total = delta.reduce(0, +)
                 next.cpu = total > 0 ? min(100, max(0, Double(total - delta[2]) * 100 / Double(total))) : nil
+                cpuSamplingStatus = total > 0 ? "CPU ACTIVE • measured via Mach host ticks" : "CPU N/A • no counter change"
             }
             previousTicks = ticks
-        } else { next.cpu = nil }
+            cpuSampleCount += 1
+        } else { next.cpu = nil; cpuSamplingStatus = "CPU N/A • Mach host_statistics failed" }
         next.usedGB = SystemProbe.memoryUsedGB()
         let (free, total) = SystemProbe.disk()
         next.diskFreeGB = free
@@ -200,6 +204,14 @@ private let amber = Color(red: 0.94, green: 0.68, blue: 0.39)
 
 @main
 struct MySystemMacApp: App {
+    init() {
+        if CommandLine.arguments.contains("--self-test") {
+            let result = MacHealthCheck.run()
+            print(result.message)
+            fflush(stdout)
+            exit(result.passed ? 0 : 1)
+        }
+    }
     var body: some Scene {
         WindowGroup("My System") { Dashboard().preferredColorScheme(.dark) }
             .defaultSize(width: 1330, height: 870)
@@ -217,6 +229,9 @@ struct Dashboard: View {
                 VStack(alignment: .leading, spacing: 23) {
                     header
                     if selection == .overview {
+                        Text(monitor.cpuSamplingStatus)
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(monitor.snapshot.cpu == nil ? amber : teal)
                         HStack(alignment: .top, spacing: 17) {
                             atlas.frame(minWidth: 520, minHeight: 445)
                             VStack(spacing: 14) {
@@ -305,7 +320,7 @@ struct Dashboard: View {
                 Spacer()
                 Text("ILLUSTRATIVE MODEL").font(.system(size: 9, design: .monospaced)).foregroundStyle(.white.opacity(0.44))
             }.padding(15)
-            HardwareAtlas(snapshot: monitor.snapshot) { component in
+            NativeHardwareAtlas(snapshot: monitor.snapshot) { component in
                 switch component {
                 case "cpu": selection = .cpu
                 case "gpu": selection = .gpu
@@ -459,66 +474,22 @@ struct Sparkline: View {
     }
 }
 
-struct HardwareAtlas: NSViewRepresentable {
-    let snapshot: SystemSnapshot
-    let onSelection: (String) -> Void
-    func makeCoordinator() -> Coordinator { Coordinator(onSelection: onSelection) }
-    func makeNSView(context: Context) -> WKWebView {
-        let controller = WKUserContentController()
-        controller.add(context.coordinator, name: "mysystem")
-        let config = WKWebViewConfiguration()
-        config.userContentController = controller
-        config.defaultWebpagePreferences.allowsContentJavaScript = true
-        let web = WKWebView(frame: .zero, configuration: config)
-        web.navigationDelegate = context.coordinator
-        web.setValue(false, forKey: "drawsBackground")
-        context.coordinator.webView = web
-        if let folder = Bundle.main.resourceURL?.appendingPathComponent("Scene", isDirectory: true) {
-            let index = folder.appendingPathComponent("index.html")
-            if FileManager.default.fileExists(atPath: index.path) {
-                web.loadFileURL(index, allowingReadAccessTo: folder)
-            } else {
-                web.loadHTMLString("<h2>3D scene assets unavailable</h2><p>Native monitoring is still running.</p>", baseURL: nil)
-            }
-        }
-        return web
-    }
-    func updateNSView(_ view: WKWebView, context: Context) {
-        context.coordinator.onSelection = onSelection
-        context.coordinator.send(snapshot)
-    }
-    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
-        weak var webView: WKWebView?
-        var ready = false
-        var onSelection: (String) -> Void
-        init(onSelection: @escaping (String) -> Void) { self.onSelection = onSelection }
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            ready = true
-        }
-        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
-                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            let allowed = action.request.url?.isFileURL == true
-            decisionHandler(allowed ? .allow : .cancel)
-        }
-        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard let data = message.body as? [String: Any], data["type"] as? String == "select",
-                  let name = data["component"] as? String,
-                  ["overview", "cpu", "gpu", "memory", "storage", "motherboard", "cooling"].contains(name) else { return }
-            DispatchQueue.main.async { [weak self] in self?.onSelection(name) }
-        }
-        func send(_ snapshot: SystemSnapshot) {
-            guard ready, let webView else { return }
-            let payload: [String: Any] = [
-                "type": "telemetry",
-                "metrics": snapshot.readings.map { item in
-                    ["id": item.id, "value": item.value.map { $0 as Any } ?? NSNull(),
-                     "unit": item.unit, "availability": item.value == nil ? "Unavailable" : "Available"] as [String: Any]
-                },
-                "thresholds": ["cpu": 85, "gpu": 83]
-            ]
-            guard let data = try? JSONSerialization.data(withJSONObject: payload),
-                  let json = String(data: data, encoding: .utf8) else { return }
-            webView.evaluateJavaScript("window.__mySystemNativeReceive?.(\(json));", completionHandler: nil)
-        }
+
+// Headless diagnostic used by Apple Silicon CI, not a substitute for real UI testing.
+enum MacHealthCheck {
+    static func run() -> (passed: Bool, message: String) {
+        let initial = SystemProbe.cpuTicks()
+        Thread.sleep(forTimeInterval: 1.2)
+        let later = SystemProbe.cpuTicks()
+        let cpu = initial != nil && later != nil && zip(initial!, later!).contains(where: { $0 != $1 })
+        let mem = SystemProbe.memoryUsedGB().map { $0 > 0 && $0.isFinite } ?? false
+        let (free, total) = SystemProbe.disk()
+        let disk = total.map { $0 > 0 && (free ?? -1) >= 0 } ?? false
+        let scene = MacHardwareModel.makeScene()
+        let required = ["cpu", "gpu", "memory", "motherboard", "cooling", "storage", "camera"]
+        let nodes = required.allSatisfy { scene.rootNode.childNode(withName: $0, recursively: false) != nil }
+        let gpuName = MTLCreateSystemDefaultDevice()?.name ?? "unavailable"
+        let passed = cpu && mem && disk && nodes
+        return (passed, "MAC_SELF_TEST cpu=\(cpu) memory=\(mem) disk=\(disk) native_scene=\(nodes) metal=\(gpuName) passed=\(passed)")
     }
 }

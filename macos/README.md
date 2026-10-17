@@ -1,8 +1,8 @@
-# My System for macOS — Apple Silicon Preview 0.2.0
+# My System for macOS — Apple Silicon Preview 0.2.1
 
 **Target:** MacBook Pro (2021) with M1 Pro / Apple Silicon, macOS 13+.
 
-This is a native SwiftUI + WKWebView application, not a Windows executable or emulation layer. It preserves the bundled offline Three.js interactive 3D scene. The visual model depicts a **representative PC assembly, not the internal geometry of an M1 Pro MacBook**.
+This is a native SwiftUI + WKWebView application, not a Windows executable or emulation layer. The Mac dashboard now renders its 3D hardware model natively with SceneKit, independent of WebKit. The visual model depicts a **representative PC assembly, not the internal geometry of an M1 Pro MacBook**.
 
 ## Actual native telemetry
 - CPU activity measured from Mach host CPU ticks, sampled approximately once per second.
@@ -11,7 +11,7 @@ This is a native SwiftUI + WKWebView application, not a Windows executable or em
 - Download/upload throughput from BSD en-interface byte counters.
 - Metal device name, hardware model, CPU core count and OS version.
 - Recent live graphs for CPU and memory.
-- Offline interactive local 3D assembly with click and orbit controls.
+- Fully native SceneKit 3D hardware model: materials, lighting, camera orbit and component picking — no WebView rendering dependency.
 - No account, cloud telemetry, background helper, privileged agent or driver.
 
 ## Known limitations
@@ -40,9 +40,12 @@ On an Apple Silicon Mac, install Xcode CLI tools or Xcode and Node.js 22; clone 
 
 Build outputs are in artifacts: the app bundle, macOS arm64 DMG and ZIP plus SHA256 checksums.
 
-The GitHub Actions workflow uses the arm64 macos-15 runner, validates bundled WebGL assets, compiles the native SwiftUI binary, verifies code signature and generates DMG/ZIP. **CI build success is not proof of physical M1 Pro thermal/GPU capabilities or actual user-interface behavior.** Those tests are separate.
+The GitHub Actions workflow uses the arm64 macos-15 runner, tests the shared scene, compiles the native SwiftUI/SceneKit binary, runs CPU/memory/disk/3D scene health checks, verifies code signature and generates DMG/ZIP. **CI build success is not proof of physical M1 Pro thermal/GPU capabilities or actual user-interface behavior.** Those tests are separate.
 
 ## Privacy and architecture
-Telemetry is gathered locally from supported public macOS APIs. There is no user account or network data upload. The WKWebView uses a narrow component-selection message handler and refuses external navigation; scene JavaScript, geometry and CSS are stored inside the app bundle.
+Telemetry is gathered locally from supported public macOS APIs. There is no user account or network data upload. The active Mac 3D atlas is rendered with SceneKit, with no browser scripting bridge involved. Shared Three.js sources are retained in the repository for the Windows edition. No network resources are loaded by the native SceneKit model.
 
 Windows sources remain unchanged at src/MySystem.App. Native Mac sources live under macos/.
+
+## 0.2.1 display fix
+The macOS interface no longer relies on a WebKit/WebGL file URL to render its hardware atlas. A native SceneKit assembly now displays CPU, GPU, RAM, storage and cooler meshes with realistic materials and lights, drag-to-orbit and click-to-select. A live CPU sampling status line identifies when Mach host CPU readings are available. CI runs a real native `--self-test` on Apple Silicon to check two distinct CPU samples, VM memory, disk capacity and 3D model assembly. Hardware-specific UI validation on an M1 Pro remains necessary.

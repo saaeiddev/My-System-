@@ -42,9 +42,11 @@ rm -rf "$ICON"
 echo "::group::Compile native SwiftUI arm64 application"
 xcrun swiftc -O -parse-as-library -target arm64-apple-macos13.0 \
   -framework SwiftUI -framework AppKit -framework Combine \
-  -framework Metal -framework WebKit -framework IOKit \
-  -o "$APP/Contents/MacOS/MySystem" macos/MySystemMac.swift
+  -framework Metal -framework WebKit -framework IOKit -framework SceneKit \
+  -o "$APP/Contents/MacOS/MySystem" macos/MySystemMac.swift macos/MacHardwareScene.swift
 echo "::endgroup::"
+# Verify real Mach CPU ticks and memory, filesystem metrics and scene graph in CI.
+"$APP/Contents/MacOS/MySystem" --self-test
 # Ad-hoc signing is NOT Apple Developer ID notarization.
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"

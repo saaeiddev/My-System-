@@ -46,5 +46,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.0-macos-build.${{ github.run_number }}"
-          gh release create "$tag"             artifacts/MySystem-macOS-arm64.dmg             artifacts/MySystem-macOS-arm64.zip             artifacts/SHA256SUMS-macOS.txt             --target '${{ github.sha }}'             --title "My System 0.2.0 — Apple Silicon Preview"             --prerelease --notes-file macos/README.md
+          tag="v0.2.1-macos-build.${{ github.run_number }}"
+          gh release create "$tag"             artifacts/MySystem-macOS-arm64.dmg             artifacts/MySystem-macOS-arm64.zip             artifacts/SHA256SUMS-macOS.txt             --target '${{ github.sha }}'             --title "My System 0.2.1 — Native SceneKit Fix"             --prerelease --notes-file macos/README.md

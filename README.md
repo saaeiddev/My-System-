@@ -2,7 +2,7 @@
 
 **Advanced 3D Hardware Monitoring & System Control Center**
 
-Two native desktop editions for Windows 11 x64 and Apple Silicon macOS. Both include a locally bundled interactive Three.js hardware inspector, while each edition uses operating-system-specific telemetry APIs. Unsupported readings remain `N/A` rather than fabricated values.
+Two native desktop editions for Windows 11 x64 and Apple Silicon macOS. The Windows edition includes an interactive Three.js inspector; the macOS edition uses a native SceneKit 3D model to avoid WebKit rendering failures. Each edition uses its own operating-system-specific telemetry APIs. Unsupported readings remain `N/A` rather than fabricated values.
 
 Repository: **https://github.com/saaeiddev/My-System-** (the final hyphen is intentional).
 
@@ -13,11 +13,11 @@ My System has two platform-specific desktop applications in **this same reposito
 | Platform | Native UI / telemetry | Download | Full sources |
 | --- | --- | --- | --- |
 | **Windows 11 x64** | C#/.NET, WinUI 3, Windows performance counters, optional LibreHardwareMonitor and PresentMon | [Windows installer (EXE)](https://github.com/saaeiddev/My-System-/releases/download/v0.1.0-build.5/MySystem-Setup.exe) or [Windows releases](https://github.com/saaeiddev/My-System-/releases) | [src/](src/), [build/](build/), [installer/](installer/) |
-| **macOS Apple Silicon (M1 Pro, arm64)** | SwiftUI + SceneKit 3D, native Mach/BSD metrics and Metal device info | [MySystem-macOS-arm64.dmg](https://github.com/saaeiddev/My-System-/releases/download/v0.2.0-macos-build.2/MySystem-macOS-arm64.dmg) or [macOS ZIP](https://github.com/saaeiddev/My-System-/releases/download/v0.2.0-macos-build.2/MySystem-macOS-arm64.zip) | [macos/](macos/), [full macOS source manifest](documentation/MACOS_SOURCE_MANIFEST.md) |
+| **macOS Apple Silicon (M1 Pro, arm64)** | SwiftUI + SceneKit 3D, native Mach/BSD metrics and Metal device info | [MySystem-macOS-arm64.dmg](https://github.com/saaeiddev/My-System-/releases/download/v0.2.1-macos-build.4/MySystem-macOS-arm64.dmg) or [macOS ZIP](https://github.com/saaeiddev/My-System-/releases/download/v0.2.1-macos-build.4/MySystem-macOS-arm64.zip) | [macos/](macos/), [full macOS source manifest](documentation/MACOS_SOURCE_MANIFEST.md) |
 
 For Apple Silicon installation details, build requirements, telemetry coverage, unsigned-app warnings, and limitations, see **[macOS README](macos/README.md)**.
 
-The macOS build is native ARM64, not an emulated Windows program. Both platforms share the original offline 3D visualization and its source files under [src/MySystem.Rendering](src/MySystem.Rendering) and [assets](assets/). Built installer artifacts are attached to **GitHub Releases in this same repository**, not committed as large binary files into the main Git tree. The Windows 0.1.x and macOS 0.2.0 builds are previews, not hardware-qualified final releases.
+The macOS build is native ARM64, not an emulated Windows program. The Windows version renders the original offline [Three.js atlas](src/MySystem.Rendering), and the Mac version renders its [native SceneKit atlas](macos/MacHardwareScene.swift); both source implementations are included here. Built installer artifacts are attached to **GitHub Releases in this same repository**, not committed as large binary files into the main Git tree. The Windows 0.1.x and macOS 0.2.1 builds are previews, not hardware-qualified final releases.
 
 ## Windows release status
 

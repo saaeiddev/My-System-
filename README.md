@@ -2,11 +2,24 @@
 
 **Advanced 3D Hardware Monitoring & System Control Center**
 
-A native Windows 11 x64 application built with C#/.NET, WinUI 3 and a locally bundled Three.js hardware inspector. All production measurements come from Windows or supported hardware sensors. Unsupported readings stay `N/A` with source and availability details.
+Two native desktop editions for Windows 11 x64 and Apple Silicon macOS. Both include a locally bundled interactive Three.js hardware inspector, while each edition uses operating-system-specific telemetry APIs. Unsupported readings remain `N/A` rather than fabricated values.
 
 Repository: **https://github.com/saaeiddev/My-System-** (the final hyphen is intentional).
 
-## Release status
+## Platforms and downloads
+
+My System has two platform-specific desktop applications in **this same repository**:
+
+| Platform | Native UI / telemetry | Download | Full sources |
+| --- | --- | --- | --- |
+| **Windows 11 x64** | C#/.NET, WinUI 3, Windows performance counters, optional LibreHardwareMonitor and PresentMon | [Windows installer (EXE)](https://github.com/saaeiddev/My-System-/releases/latest) or [Windows releases](https://github.com/saaeiddev/My-System-/releases) | [src/](src/), [build/](build/), [installer/](installer/) |
+| **macOS Apple Silicon (M1 Pro, arm64)** | SwiftUI, native Mach/BSD metrics, Metal identification and embedded WebKit/Three.js | [MySystem-macOS-arm64.dmg](https://github.com/saaeiddev/My-System-/releases/download/v0.2.0-macos-build.2/MySystem-macOS-arm64.dmg) or [macOS ZIP](https://github.com/saaeiddev/My-System-/releases/download/v0.2.0-macos-build.2/MySystem-macOS-arm64.zip) | [macos/](macos/), [full macOS source manifest](documentation/MACOS_SOURCE_MANIFEST.md) |
+
+For Apple Silicon installation details, build requirements, telemetry coverage, unsigned-app warnings, and limitations, see **[macOS README](macos/README.md)**.
+
+The macOS build is native ARM64, not an emulated Windows program. Both platforms share the original offline 3D visualization and its source files under [src/MySystem.Rendering](src/MySystem.Rendering) and [assets](assets/). Built installer artifacts are attached to **GitHub Releases in this same repository**, not committed as large binary files into the main Git tree. The Windows 0.1.x and macOS 0.2.0 builds are previews, not hardware-qualified final releases.
+
+## Windows release status
 
 This is the initial **0.1.0 preview**. The Windows workflow tests, publishes a self-contained application, builds `MySystem-Setup.exe`, then verifies installation, native-window launch, clean shutdown and uninstallation before publishing a GitHub prerelease. A green build does **not** qualify physical Intel/NVIDIA/AMD hardware, gaming capture or sustained monitoring overhead. See [testing](documentation/TESTING.md) and [known limitations](documentation/KNOWN-LIMITATIONS.md).
 

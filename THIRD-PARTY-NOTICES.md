@@ -16,6 +16,6 @@ My System source is MIT licensed. Bundled dependencies retain their own licenses
 
 LibreHardwareMonitor is included unmodified. Its corresponding source is available at the exact tag linked above, and the MPL license and upstream third-party notices are included in `licenses/`. No PawnIO installer or driver is bundled or installed by My System. Refer to the upstream notices for sensor library transitive components.
 
-The renderer bundle includes Three.js's MIT notice in `Scene/licenses/`. Windows and .NET dependency notices are retained in the self-contained publish output where supplied by their packages. Microsoft WebView2 remains subject to Microsoft's runtime redistribution and update terms; the installer runs its official signed bootstrapper only if the runtime is absent.
+The renderer bundle includes Three.js's MIT notice in `Scene/THREE-LICENSE.txt`. Windows and .NET dependency notices are retained in the self-contained publish output where supplied by their packages. Microsoft WebView2 remains subject to Microsoft's runtime redistribution and update terms; the installer runs its official signed bootstrapper only if the runtime is absent.
 
 Original procedural 3D hardware geometry, material palettes, and icon artwork are included in this repository under the project MIT license. The app uses system Segoe UI and Consolas fonts; no proprietary font files are redistributed.

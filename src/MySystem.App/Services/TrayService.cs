@@ -8,7 +8,10 @@ public sealed class TrayService : IDisposable
     readonly Action show, quit, overlay, minimized;
     readonly SubclassProc callback;
     NotifyIconData data;
-    bool started;
+    bool started, ownsIcon;
+    readonly uint taskbarCreated = RegisterWindowMessage("TaskbarCreated");
+    public bool Available { get; private set; }
+
     public TrayService(nint hwnd, Action show, Action quit, Action overlay, Action minimized)
     {
         this.hwnd = hwnd;
@@ -36,9 +39,10 @@ public sealed class TrayService : IDisposable
             Info = "",
             InfoTitle = ""
         };
+        ownsIcon = data.Icon != 0;
         if (data.Icon == 0)
             data.Icon = LoadIcon(0, 32512);
-        Shell_NotifyIcon(0, ref data);
+        Available = Shell_NotifyIcon(0, ref data);
         SetWindowSubclass(hwnd, callback, 1, 0);
         RegisterHotKey(hwnd, 0x4D59, 0x4003, 0x4D);
     }
@@ -54,6 +58,13 @@ public sealed class TrayService : IDisposable
 
     nint WndProc(nint h, uint message, nuint w, nint l, nuint id, nuint reference)
     {
+        if (message == taskbarCreated)
+        {
+            data.Flags = 7;
+            Available = Shell_NotifyIcon(0, ref data);
+            return 0;
+        }
+
         if (message == 0x8001)
         {
             int e = (int)l & 0xffff;
@@ -99,7 +110,7 @@ public sealed class TrayService : IDisposable
         UnregisterHotKey(hwnd, 0x4D59);
         RemoveWindowSubclass(hwnd, callback, 1);
         Shell_NotifyIcon(2, ref data);
-        if (data.Icon != 0)
+        if (ownsIcon && data.Icon != 0)
             DestroyIcon(data.Icon);
     }
 
@@ -130,6 +141,8 @@ public sealed class TrayService : IDisposable
         public int X, Y;
     }
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    static extern uint RegisterWindowMessage(string name);
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     static extern bool Shell_NotifyIcon(uint message, ref NotifyIconData data);
     [DllImport("comctl32.dll")]

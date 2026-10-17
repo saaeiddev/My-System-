@@ -53,6 +53,13 @@ public sealed partial class MainWindow
             await Task.Delay(250);
             ToggleOverlay();
             checks.Add("Desktop overlay open/update/close lifecycle");
+            ((Microsoft.UI.Windowing.OverlappedPresenter)AppWindow.Presenter).Minimize();
+            await Task.Delay(300);
+            ShowWindow();
+            await Task.Delay(300);
+            if (minimized || !AppWindow.IsVisible)
+                throw new InvalidOperationException("Window did not restore after minimizing.");
+            checks.Add("Minimize-to-tray and native restore lifecycle");
             nav.SelectedItem = nav.MenuItems[0];
             var report = new
             {

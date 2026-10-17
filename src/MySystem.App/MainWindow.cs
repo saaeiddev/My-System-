@@ -59,7 +59,7 @@ public sealed partial class MainWindow : Window
     HistoryChart? historyChart;
     ComboBox? historyMetric;
     ComboBox? historyRange;
-    bool historyPaused, sceneReady, closed, shutdownReady;
+    bool historyPaused, sceneReady, closed, shutdownReady, minimized;
     string section = "Overview";
     TrayService? tray;
     OverlayWindow? overlay;
@@ -132,7 +132,16 @@ public sealed partial class MainWindow : Window
         Activated += (_, e) =>
         {
             if (e.WindowActivationState != WindowActivationState.Deactivated)
+            {
+                minimized = false;
                 SendSceneConfig();
+                if (vm.Current != null)
+                {
+                    UpdatePage(vm.Current);
+                    SendTelemetry(vm.Current);
+                }
+            }
+
             if (tray is null)
             {
                 tray = new(WindowNative.GetWindowHandle(this), ShowWindow, () => Close(), ToggleOverlay, OnMinimized);
@@ -177,7 +186,7 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            var environment = await CoreWebView2Environment.CreateAsync(null, Path.Combine(AppPaths.DataDirectory, "WebView2"));
+            var environment = await CoreWebView2Environment.CreateWithOptionsAsync(null, Path.Combine(AppPaths.DataDirectory, "WebView2"), null);
             await scene.EnsureCoreWebView2Async(environment);
             var core = scene.CoreWebView2;
             core.SetVirtualHostNameToFolderMapping("mysystem.local", Path.Combine(AppContext.BaseDirectory, "Scene"), CoreWebView2HostResourceAccessKind.DenyCors);
@@ -274,7 +283,7 @@ public sealed partial class MainWindow : Window
             scene.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(message));
     }
 
-    void SendSceneConfig() => Send(new { type = "config", quality = vm.Settings.RenderQuality, fpsCap = vm.Settings.RenderFps, reducedMotion = vm.Settings.ReducedMotion, paused = section is not ("Overview" or "CPU" or "GPU" or "Memory" or "Storage" or "Thermals"), appearance = root.ActualTheme == ElementTheme.Light ? "light" : "dark", accent = vm.Settings.Accent });
+    void SendSceneConfig() => Send(new { type = "config", quality = vm.Settings.RenderQuality, fpsCap = vm.Settings.RenderFps, reducedMotion = vm.Settings.ReducedMotion, paused = minimized || section is not ("Overview" or "CPU" or "GPU" or "Memory" or "Storage" or "Thermals"), appearance = root.ActualTheme == ElementTheme.Light ? "light" : "dark", accent = vm.Settings.Accent });
     void SendSceneSelection() => Send(new { type = "select", component = section switch
     {
         "CPU" => "cpu",
@@ -287,14 +296,18 @@ public sealed partial class MainWindow : Window
     void SendTelemetry(TelemetrySnapshot s) => Send(new { type = "telemetry", metrics = s.Metrics.Select(m => new { id = m.Id, value = m.Value, unit = m.Unit, availability = m.Availability.ToString() }), thresholds = new { cpu = vm.Settings.CpuTemperatureThreshold, gpu = vm.Settings.GpuTemperatureThreshold } });
     void OnMinimized()
     {
+        minimized = true;
         Send(new { type = "config", paused = true });
-        if (vm.Settings.MinimizeToTray)
+        if (vm.Settings.MinimizeToTray && tray?.Available == true)
             AppWindow.Hide();
     }
 
     void ShowWindow()
     {
+        minimized = false;
         AppWindow.Show();
+        if (AppWindow.Presenter is OverlappedPresenter presenter && presenter.State == OverlappedPresenterState.Minimized)
+            presenter.Restore();
         Activate();
         SendSceneConfig();
     }
@@ -321,10 +334,24 @@ public sealed partial class MainWindow : Window
         if (closed)
             return;
         status.Text = vm.Status;
-        UpdatePage(s);
-        SendTelemetry(s);
+        ObserveExtrema(s);
+        if (!minimized)
+        {
+            UpdatePage(s);
+            SendTelemetry(s);
+        }
+
         overlay?.Update(s, vm.Gaming.Snapshot);
     });
+    void ObserveExtrema(TelemetrySnapshot s)
+    {
+        foreach (var m in s.Metrics.Where(m => m.Value.HasValue))
+        {
+            var v = m.Value!.Value;
+            extrema[m.Id] = extrema.TryGetValue(m.Id, out var old) ? (Math.Min(old.min, v), Math.Max(old.max, v)) : (v, v);
+        }
+    }
+
     void Navigate(string name)
     {
         section = name;
@@ -518,7 +545,7 @@ public sealed partial class MainWindow : Window
         return b;
     }
 
-    static Button Button(string t, Func<Task> a)
+    Button Button(string t, Func<Task> a)
     {
         var b = new Button
         {
@@ -533,6 +560,7 @@ public sealed partial class MainWindow : Window
             }
             catch (Exception ex)
             {
+                status.Text = ex.Message;
                 ToolTipService.SetToolTip(b, ex.Message);
             }
             finally
@@ -660,12 +688,6 @@ public sealed partial class MainWindow : Window
 
         foreach (var(c, id, minutes)in charts)
             c.SetPoints(vm.History.Select(id, DateTimeOffset.UtcNow.AddMinutes(-minutes)));
-        foreach (var m in s.Metrics.Where(m => m.Value.HasValue))
-        {
-            var v = m.Value!.Value;
-            extrema[m.Id] = extrema.TryGetValue(m.Id, out var old) ? (Math.Min(old.min, v), Math.Max(old.max, v)) : (v, v);
-        }
-
         if (rows != null)
         {
             if (section == "Processes")

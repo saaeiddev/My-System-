@@ -9,6 +9,7 @@ test('unsupported or malformed values never turn into invented zero readings', (
   }
   assert.equal(availableValue({ value: 0, availability: 'Available' }), 0);
   assert.equal(availableValue({ value: 0, availability: 0 }), 0);
+  assert.equal(formatMetric({ value: 4294967296, unit: 'bytes', availability: 'Available' }), '4 GiB');
 });
 test('thermal highlighting requires a real supported Celsius measurement', () => {
   assert.equal(thermalLevel({ value: 85, unit: '°C', availability: 'available' }, 85), 1);

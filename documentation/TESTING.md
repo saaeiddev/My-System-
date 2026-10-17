@@ -8,9 +8,9 @@ The Windows workflow runs the exact source in the checked-out commit:
 2. .NET unit tests for physical memory semantics, frame statistics/1% lows, metric availability, history CSV escaping/ranges/caps, alert persistence/cooldown and missing-sample handling, PresentMon CSV quoting/header parsing, settings round trip/validation and export formatting.
 3. WinUI Release publish on the Windows x64 runner.
 4. Inno Setup packaging.
-5. Silent per-user installation, native-window launch alive after 15 seconds, measured CPU/working-set snapshot, orderly shutdown and uninstall.
+5. Silent per-user installation; advancing real CPU/physical-memory samples; all twelve native pages; a successfully initialized local WebGL canvas; GPU scene selection opening native GPU details; overlay open/close; measured CPU/working-set snapshot; orderly shutdown; and uninstall. Results are in smoke/native-checks.json.
 
-The release step runs only after these checks succeed. Logs, TRX tests and `smoke/launch.json` are stored as workflow artifacts. A 15-second launch smoke is not a stability or graphics/hardware accuracy test.
+The release step runs only after these checks succeed. Logs, TRX tests and `smoke/launch.json` are stored as workflow artifacts. These integration checks run on the Windows Server 2025 hosted runner. They are not physical Windows 11, gaming stability or hardware accuracy tests.
 
 ## Local development results
 

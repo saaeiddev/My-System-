@@ -25,6 +25,17 @@ public sealed class AppSettings
     public double CpuLoadThreshold { get; set; } = 95;
     public double GpuLoadThreshold { get; set; } = 95;
     public double StorageFreeThreshold { get; set; } = 10;
+    public bool OverlayShowFps { get; set; } = true;
+    public bool OverlayShowCpu { get; set; } = true;
+    public bool OverlayShowGpu { get; set; } = true;
+    public bool OverlayShowMemory { get; set; } = true;
+    public bool OverlayShowTemperature { get; set; } = true;
+    public bool CpuTemperatureAlert { get; set; } = true;
+    public bool GpuTemperatureAlert { get; set; } = true;
+    public bool MemoryAlert { get; set; } = true;
+    public bool CpuLoadAlert { get; set; } = true;
+    public bool GpuLoadAlert { get; set; } = true;
+    public bool StorageAlert { get; set; } = true;
     public bool AlertsEnabled { get; set; } = true;
     public int AlertCooldownSeconds { get; set; } = 120;
 

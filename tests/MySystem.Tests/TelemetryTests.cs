@@ -31,6 +31,17 @@ public sealed class TelemetryTests
     }
 
     [Fact]
+    public void HistoryHasAnIndependentMetricPointBudget()
+    {
+        var buffer = new HistoryBuffer(1000, maximumMetricPoints: 3);
+        for (int i = 0; i < 10; i++) buffer.Add(Sample(i, i));
+        Assert.Equal(3, buffer.Count);
+        buffer.Clear();
+        buffer.Add(Sample(20, 20));
+        Assert.Single(buffer.GetRange(Origin));
+    }
+
+    [Fact]
     public void CsvKeepsMissingValueEmptyAndEscapesFormulaText()
     {
         var history = new HistoryBuffer();
@@ -65,6 +76,27 @@ public sealed class TelemetryTests
         engine.Evaluate(Sample(4, null, MetricAvailability.Unavailable), rules);
         Assert.Empty(engine.Evaluate(Sample(6, 90), rules));
         Assert.Single(engine.Evaluate(Sample(11, 90), rules));
+    }
+
+    [Fact]
+    public void SleepResumeDoesNotCountUnobservedTimeAsSustainedLoad()
+    {
+        var engine = new AlertEngine();
+        var rules = new[] { new AlertRule("cpu", "CPU load", "cpu.usage", 80, TimeSpan.FromSeconds(5), TimeSpan.Zero) };
+        engine.Evaluate(Sample(0, 90), rules);
+        Assert.Empty(engine.Evaluate(Sample(3600, 90), rules));
+        Assert.Single(engine.Evaluate(Sample(3605, 90), rules));
+    }
+
+    [Fact]
+    public async Task AlertHistoryCanBeReadConcurrentlyWithEvaluation()
+    {
+        var engine = new AlertEngine();
+        var rules = new[] { new AlertRule("cpu", "CPU load", "cpu.usage", 80, TimeSpan.Zero, TimeSpan.Zero) };
+        var writer = Task.Run(() => { for (int i = 0; i < 2000; i++) engine.Evaluate(Sample(i, i % 2 == 0 ? 90 : 10), rules); });
+        var reader = Task.Run(() => { for (int i = 0; i < 2000; i++) Assert.InRange(engine.History.Count, 0, 500); });
+        await Task.WhenAll(writer, reader);
+        Assert.Equal(500, engine.History.Count);
     }
 
     [Fact]

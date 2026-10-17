@@ -6,8 +6,10 @@ $installer=Start-Process (Resolve-Path artifacts/MySystem-Setup.exe) -ArgumentLi
 if ($installer.ExitCode -ne 0) { throw "Installer failed: $($installer.ExitCode)" }
 $executable=Join-Path $destination 'MySystem.exe'
 if (-not(Test-Path $executable)) { throw 'Installed executable missing' }
-$app=Start-Process $executable -PassThru
-Start-Sleep -Seconds 15
+$smokeDirectory=(Resolve-Path artifacts/smoke).Path
+$app=Start-Process $executable -ArgumentList @('--smoke-test',"`"$smokeDirectory`"") -PassThru
+$deadline=(Get-Date).AddSeconds(70)
+while ((Get-Date) -lt $deadline -and -not (Test-Path artifacts/smoke/native-checks.json)) { Start-Sleep -Milliseconds 500; $app.Refresh(); if($app.HasExited){break} }
 $app.Refresh()
 if ($app.HasExited) {
     Start-Sleep -Seconds 2
@@ -20,11 +22,14 @@ if ($app.HasExited) {
     Write-Host "Recent Windows crash events: $events"
     throw "Application exited during launch: $($app.ExitCode)"
 }
+if (-not (Test-Path artifacts/smoke/native-checks.json)) { throw 'Native integration checks did not produce a report' }
+$native=Get-Content artifacts/smoke/native-checks.json -Raw|ConvertFrom-Json
+if (-not $native.passed) { Get-Content artifacts/smoke/native-checks.json; throw 'Native integration checks failed' }
 if ($app.MainWindowHandle -eq 0) { throw 'Application did not create a native window' }
-$measurements=[ordered]@{timestamp=[DateTimeOffset]::UtcNow;processId=$app.Id;window=$app.MainWindowHandle.ToInt64();workingSetBytes=$app.WorkingSet64;cpuSeconds=$app.TotalProcessorTime.TotalSeconds;environment='GitHub Windows runner, no physical GPU qualification';durationSeconds=15}
+$measurements=[ordered]@{timestamp=[DateTimeOffset]::UtcNow;processId=$app.Id;window=$app.MainWindowHandle.ToInt64();workingSetBytes=$app.WorkingSet64;cpuSeconds=$app.TotalProcessorTime.TotalSeconds;environment='GitHub Windows runner, no physical GPU qualification';durationSeconds=((Get-Date)-$app.StartTime).TotalSeconds}
 $measurements|ConvertTo-Json|Set-Content artifacts/smoke/launch.json
 $app.CloseMainWindow()|Out-Null
-if (-not $app.WaitForExit(10000)) { $app.Kill(); throw 'Application did not shut down cleanly' }
+if (-not $app.WaitForExit(15000)) { $app.Kill(); throw 'Application did not shut down cleanly' }
 $uninstall=Start-Process (Join-Path $destination 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
 if ($uninstall.ExitCode -ne 0) { throw "Uninstall failed: $($uninstall.ExitCode)" }
 if (Test-Path $executable) { throw 'Application remains after uninstall' }

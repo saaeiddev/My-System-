@@ -3,7 +3,10 @@ using System.Text;
 
 namespace MySystem.Gaming;
 
-public sealed record PresentedFrame(int ProcessId, string SwapChain, double FrameTimeMs);
+public sealed record PresentedFrame(int ProcessId, string SwapChain, double FrameTimeMs)
+{
+    public long? QpcTimestamp { get; init; }
+}
 
 /// <summary>Parses the explicitly requested PresentMon v1 CSV schema; diagnostics are never treated as data.</summary>
 public sealed class PresentMonCsvParser
@@ -28,7 +31,9 @@ public sealed class PresentMonCsvParser
             !int.TryParse(process, NumberStyles.None, CultureInfo.InvariantCulture, out int pid) || pid <= 0 ||
             !double.TryParse(interval, NumberStyles.Float, CultureInfo.InvariantCulture, out double ms) ||
             !double.IsFinite(ms) || ms <= 0) return null;
-        return new(pid, chain, ms);
+        long? qpc = TryGet(values, "QPCTime", out string timestamp) &&
+            long.TryParse(timestamp, NumberStyles.None, CultureInfo.InvariantCulture, out long ticks) && ticks > 0 ? ticks : null;
+        return new(pid, chain, ms) { QpcTimestamp = qpc };
     }
 
     private bool TryGet(IReadOnlyList<string> values, string name, out string value)

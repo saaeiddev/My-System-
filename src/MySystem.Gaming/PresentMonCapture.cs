@@ -3,13 +3,17 @@ using MySystem.Core;
 
 namespace MySystem.Gaming;
 
+public sealed record GamingFrameSample(double FrameTimeMs, DateTimeOffset Timestamp);
 public sealed record GamingSnapshot(double? Fps, double? OnePercentLow, double? FrameTimeMs,
-    IReadOnlyList<double> FrameTimes, string Status, DateTimeOffset Timestamp, int? ProcessId);
+    IReadOnlyList<double> FrameTimes, string Status, DateTimeOffset Timestamp, int? ProcessId)
+{
+    public IReadOnlyList<GamingFrameSample> FrameSamples { get; init; } = Array.Empty<GamingFrameSample>();
+}
 
 /// <summary>Runs the bundled ETW console collector. No process injection, service, or elevation is performed.</summary>
 public sealed class PresentMonCapture : IDisposable
 {
-    private sealed record FramePoint(long ReceivedAt, double Milliseconds);
+    private sealed record FramePoint(long EventAt, DateTimeOffset EventUtc, double Milliseconds);
     private sealed class CaptureRun(Process process, CancellationTokenSource cancellation, string sessionName, int pid)
     {
         public Process Process { get; } = process;
@@ -17,6 +21,9 @@ public sealed class PresentMonCapture : IDisposable
         public string SessionName { get; } = sessionName;
         public int ProcessId { get; } = pid;
         public string LastError { get; set; } = "";
+        // Stopwatch uses QueryPerformanceCounter on Windows, the same timebase as PresentMon ETW events.
+        public long ClockQpc { get; } = Stopwatch.GetTimestamp();
+        public DateTimeOffset ClockUtc { get; } = DateTimeOffset.UtcNow;
         public int Stopping;
     }
 
@@ -27,6 +34,7 @@ public sealed class PresentMonCapture : IDisposable
     private string _status = "Select a running graphics process to begin a real ETW capture.";
     private DateTimeOffset _timestamp = DateTimeOffset.UtcNow;
     private bool _disposed;
+    private Task _monitorTask = Task.CompletedTask;
     private const int MaxFramesPerChain = 100_000;
     private const int MaxSwapChains = 16;
 
@@ -42,12 +50,12 @@ public sealed class PresentMonCapture : IDisposable
                 Prune(now);
                 // The most active swap chain in the last five seconds is the primary render stream.
                 var primary = _chains.Values.Where(q => q.Count > 0)
-                    .OrderByDescending(q => q.Count(p => Age(now, p.ReceivedAt) <= 5))
-                    .ThenByDescending(q => q.Last().ReceivedAt).FirstOrDefault();
-                if (_run is null || primary is null || Age(now, primary.Last().ReceivedAt) > 3)
+                    .OrderByDescending(q => q.Count(p => Age(now, p.EventAt) <= 5))
+                    .ThenByDescending(q => q.Last().EventAt).FirstOrDefault();
+                if (_run is null || primary is null || Age(now, primary.Last().EventAt) > 3)
                 {
                     string state = _run is not null && primary is not null
-                        ? "No new frame events for 3 seconds. The process may be paused, minimized, protected, or no longer presenting."
+                        ? "No recent frame events for 3 seconds. The process may be paused, minimized, protected, or no longer presenting."
                         : _status;
                     return new(null, null, null, Array.Empty<double>(), state, _timestamp, _run?.ProcessId);
                 }
@@ -55,7 +63,8 @@ public sealed class PresentMonCapture : IDisposable
                 var stats = FrameStatistics.Calculate(times);
                 return new(stats.AverageFps, stats.OnePercentLowFps, times[^1], times,
                     $"Live PresentMon ETW · {times.Length:N0} frames · rolling 60 s · primary swap chain",
-                    _timestamp, _run.ProcessId);
+                    primary.Last().EventUtc, _run.ProcessId)
+                { FrameSamples = primary.Select(p => new GamingFrameSample(p.Milliseconds, p.EventUtc)).ToArray() };
             }
         }
     }
@@ -80,7 +89,7 @@ public sealed class PresentMonCapture : IDisposable
             WorkingDirectory = Path.GetDirectoryName(_exePath)!
         };
         foreach (string arg in new[] { "--process_id", processId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            "--output_stdout", "--no_console_stats", "--v1_metrics", "--session_name", session,
+            "--output_stdout", "--no_console_stats", "--v1_metrics", "--qpc_time", "--session_name", session,
             "--terminate_on_proc_exit", "--no_track_gpu", "--no_track_input", "--no_track_display" })
             start.ArgumentList.Add(arg);
         var process = new Process { StartInfo = start };
@@ -96,7 +105,7 @@ public sealed class PresentMonCapture : IDisposable
                 _timestamp = DateTimeOffset.UtcNow;
                 _status = "Waiting for PresentMon frame events. ETW capture requires appropriate Windows permissions.";
             }
-            _ = MonitorAsync(run);
+            _monitorTask = MonitorAsync(run);
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
         {
@@ -148,20 +157,30 @@ public sealed class PresentMonCapture : IDisposable
         {
             var frame = parser.Parse(line);
             if (frame is null || frame.ProcessId != run.ProcessId) continue;
+            if (frame.QpcTimestamp is not { } eventAt)
+            {
+                lock (_gate)
+                    if (ReferenceEquals(_run, run)) _status = "PresentMon did not return the requested QPC timestamps. Check the bundled collector version.";
+                continue;
+            }
             lock (_gate)
             {
                 if (!ReferenceEquals(_run, run)) return;
                 long now = Stopwatch.GetTimestamp();
                 Prune(now);
+                // Never label delayed trace data as live. Reject impossible timestamps and expired events.
+                if (Age(now, eventAt) is < -.5 or > 60) continue;
                 if (!_chains.TryGetValue(frame.SwapChain, out var queue))
                 {
                     if (_chains.Count >= MaxSwapChains)
-                        _chains.Remove(_chains.OrderBy(p => p.Value.Count == 0 ? 0 : p.Value.Last().ReceivedAt).First().Key);
+                        _chains.Remove(_chains.OrderBy(p => p.Value.Count == 0 ? 0 : p.Value.Last().EventAt).First().Key);
                     _chains[frame.SwapChain] = queue = new();
                 }
-                queue.Enqueue(new(now, frame.FrameTimeMs));
+                if (queue.Count > 0 && eventAt <= queue.Last().EventAt) continue;
+                DateTimeOffset eventUtc = run.ClockUtc.AddSeconds(Age(eventAt, run.ClockQpc));
+                queue.Enqueue(new(eventAt, eventUtc, frame.FrameTimeMs));
                 while (queue.Count > MaxFramesPerChain) queue.Dequeue();
-                _timestamp = DateTimeOffset.UtcNow;
+                _timestamp = eventUtc;
             }
         }
     }
@@ -175,7 +194,7 @@ public sealed class PresentMonCapture : IDisposable
     private void Prune(long now)
     {
         foreach (var queue in _chains.Values)
-            while (queue.Count > 0 && Age(now, queue.Peek().ReceivedAt) > 60) queue.Dequeue();
+            while (queue.Count > 0 && Age(now, queue.Peek().EventAt) > 60) queue.Dequeue();
     }
 
     private static double Age(long now, long then) => (now - then) / (double)Stopwatch.Frequency;
@@ -227,5 +246,6 @@ public sealed class PresentMonCapture : IDisposable
     }
 
     private void SetStatus(string value) { lock (_gate) { _status = value; _timestamp = DateTimeOffset.UtcNow; } }
+    public async Task ShutdownAsync() { Dispose(); try { await _monitorTask.WaitAsync(TimeSpan.FromSeconds(6)); } catch (TimeoutException) { } }
     public void Dispose() { if (_disposed) return; _disposed = true; Stop(); }
 }

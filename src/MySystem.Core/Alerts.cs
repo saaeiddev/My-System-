@@ -14,12 +14,19 @@ public sealed class AlertEngine
         public DateTimeOffset? LastEvent;
         public bool Active;
         public AlertRule? Definition;
+        public DateTimeOffset? LastSample;
     }
+    private readonly object _gate = new();
     private readonly Dictionary<string, State> _states = new();
     private readonly Queue<AlertEvent> _history = new();
-    public IReadOnlyList<AlertEvent> History => _history.ToArray();
+    public IReadOnlyList<AlertEvent> History { get { lock (_gate) return _history.ToArray(); } }
 
     public IReadOnlyList<AlertEvent> Evaluate(TelemetrySnapshot snapshot, IEnumerable<AlertRule> rules)
+    {
+        lock (_gate) return EvaluateLocked(snapshot, rules);
+    }
+
+    private IReadOnlyList<AlertEvent> EvaluateLocked(TelemetrySnapshot snapshot, IEnumerable<AlertRule> rules)
     {
         var events = new List<AlertEvent>();
         var known = new HashSet<string>();
@@ -28,6 +35,10 @@ public sealed class AlertEngine
             known.Add(rule.Id);
             if (!_states.TryGetValue(rule.Id, out var state) || state.Definition != rule)
                 _states[rule.Id] = state = new State { Definition = rule };
+            // Sleep/resume and clock corrections cannot prove that a threshold stayed exceeded.
+            if (state.LastSample is { } previous &&
+                (snapshot.Timestamp <= previous || snapshot.Timestamp - previous > TimeSpan.FromSeconds(30))) state.Since = null;
+            state.LastSample = snapshot.Timestamp;
             var metric = snapshot.Find(rule.MetricId);
             if (!rule.Enabled || metric is not { Availability: MetricAvailability.Available, Value: not null } ||
                 !double.IsFinite(metric.Value.Value))

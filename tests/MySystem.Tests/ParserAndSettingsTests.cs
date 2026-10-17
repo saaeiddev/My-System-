@@ -44,6 +44,16 @@ public sealed class ParserAndSettingsTests
     }
 
     [Fact]
+    public void PresentMonKeepsQpcTimestampsAsPreciseIntegers()
+    {
+        var parser = new PresentMonCsvParser();
+        parser.Parse("Application,ProcessID,SwapChainAddress,MsBetweenPresents,QPCTime");
+        Assert.Equal(9_007_199_254_740_993L, parser.Parse("app,42,0x1,16.5,9007199254740993")!.QpcTimestamp);
+        Assert.Null(parser.Parse("app,42,0x1,16.5,NaN")!.QpcTimestamp);
+        Assert.Null(parser.Parse("app,42,0x1,16.5,-1")!.QpcTimestamp);
+    }
+
+    [Fact]
     public void SettingsValidationBoundsPollingAndRejectsInvalidColors()
     {
         var settings = new AppSettings { RefreshSeconds = double.NaN, RenderFps = 1000, Accent = "javascript:alert(1)", OverlayOpacity = -2 };

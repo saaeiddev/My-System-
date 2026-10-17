@@ -168,7 +168,10 @@ function setup() {
   });
   renderer.domElement.addEventListener('webglcontextlost', event => { event.preventDefault(); hostPaused = true; updatePause(); $('error').hidden = false; send({ type: 'rendererError', reason: 'context-lost' }); });
   renderer.domElement.addEventListener('webglcontextrestored', () => { hostPaused = config.paused; $('error').hidden = true; updatePause(); });
-  new ResizeObserver(resize).observe($('viewport')); applyConfig(config); invalidate();
+  new ResizeObserver(resize).observe($('viewport')); applyConfig(config);
+  // Paint one initial frame before settling into on-demand/visibility scheduling.
+  // This also gives a hidden native host a valid first surface on activation.
+  renderer.render(scene, camera); dirty = false; invalidate();
   send({ type: 'ready', version: 1 });
 }
 document.querySelectorAll('[data-component]').forEach(button => button.addEventListener('click', () => setSelection(button.dataset.component)));

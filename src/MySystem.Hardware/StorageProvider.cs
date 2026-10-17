@@ -25,7 +25,7 @@ public sealed class StorageProvider : ITelemetryProvider
         var metrics = new List<Metric>();
         var present = new HashSet<string>();
         var reads = new List<double>(); var writes = new List<double>(); var activities = new List<double>();
-        double total = 0, free = 0;
+        var freePercentages = new List<double>();
         foreach (var drive in DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed))
         {
             var name = drive.Name.TrimEnd('\\');
@@ -35,7 +35,7 @@ public sealed class StorageProvider : ITelemetryProvider
             {
                 if (!drive.IsReady) continue;
                 long size = drive.TotalSize, available = drive.TotalFreeSpace;
-                total += size; free += available;
+                if (size > 0) freePercentages.Add(100d * available / size);
                 metrics.Add(new(id + ".total", name + " capacity", size, "B", timestamp, "DriveInfo", MetricAvailability.Available));
                 metrics.Add(new(id + ".free", name + " free space", available, "B", timestamp, "DriveInfo", MetricAvailability.Available));
                 metrics.Add(new(id + ".used", name + " used space", size - available, "B", timestamp, "DriveInfo", MetricAvailability.Available));
@@ -68,8 +68,8 @@ public sealed class StorageProvider : ITelemetryProvider
             writes.Count > 0 ? MetricAvailability.Available : MetricAvailability.Unavailable, "Sum of measured fixed volumes."));
         metrics.Add(new("disk.activity", "Busiest volume activity", activities.Count > 0 ? activities.Max() : null, "%", timestamp, Name,
             activities.Count > 0 ? MetricAvailability.Available : MetricAvailability.Unavailable, "Maximum of 100 minus measured idle time across volumes."));
-        metrics.Add(new("disk.free.percent", "Fixed-volume free space", total > 0 ? free / total * 100 : null, "%", timestamp, "DriveInfo",
-            total > 0 ? MetricAvailability.Available : MetricAvailability.Unavailable, "Capacity-weighted free space across fixed volumes."));
+        metrics.Add(new("disk.free.percent", "Lowest fixed-volume free space", freePercentages.Count > 0 ? freePercentages.Min() : null, "%", timestamp, "DriveInfo",
+            freePercentages.Count > 0 ? MetricAvailability.Available : MetricAvailability.Unavailable, "Lowest percentage of free space among ready fixed volumes; inspect individual volumes for capacity."));
         return metrics;
     }
     public void Dispose() { foreach (var value in _counters.Values) value.Dispose(); _counters.Clear(); }

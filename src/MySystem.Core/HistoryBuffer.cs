@@ -8,13 +8,17 @@ public sealed class HistoryBuffer
 {
     private readonly object _gate = new();
     private readonly Queue<TelemetrySnapshot> _samples = new();
+    private readonly int _maximumMetricPoints;
+    private int _metricPoints;
     public int Capacity { get; }
     public int Count { get { lock (_gate) return _samples.Count; } }
 
-    public HistoryBuffer(int capacity = 3600)
+    public HistoryBuffer(int capacity = 3600, int maximumMetricPoints = 1_000_000)
     {
         if (capacity < 1 || capacity > 1_000_000) throw new ArgumentOutOfRangeException(nameof(capacity));
+        if (maximumMetricPoints < 1) throw new ArgumentOutOfRangeException(nameof(maximumMetricPoints));
         Capacity = capacity;
+        _maximumMetricPoints = maximumMetricPoints;
     }
 
     public void Add(TelemetrySnapshot snapshot)
@@ -23,7 +27,10 @@ public sealed class HistoryBuffer
         lock (_gate)
         {
             _samples.Enqueue(snapshot);
-            while (_samples.Count > Capacity) _samples.Dequeue();
+            _metricPoints += snapshot.Metrics.Count;
+            // Retain the latest sample even if a single unusually large snapshot exceeds the point budget.
+            while (_samples.Count > Capacity || _samples.Count > 1 && _metricPoints > _maximumMetricPoints)
+                _metricPoints -= _samples.Dequeue().Metrics.Count;
         }
     }
 
@@ -36,7 +43,7 @@ public sealed class HistoryBuffer
     public IReadOnlyList<Metric> Select(string metricId, DateTimeOffset start, DateTimeOffset? end = null) =>
         GetRange(start, end).Select(s => s.Find(metricId)).OfType<Metric>().ToArray();
 
-    public void Clear() { lock (_gate) _samples.Clear(); }
+    public void Clear() { lock (_gate) { _samples.Clear(); _metricPoints = 0; } }
 
     public string ExportCsv(DateTimeOffset? start = null, DateTimeOffset? end = null)
     {
@@ -44,7 +51,7 @@ public sealed class HistoryBuffer
         foreach (var sample in GetRange(start ?? DateTimeOffset.MinValue, end))
         foreach (var metric in sample.Metrics)
             csv.AppendJoin(',', Escape(metric.Timestamp.ToString("O", CultureInfo.InvariantCulture)), Escape(metric.Id),
-                Escape(metric.Name), metric.Value?.ToString("R", CultureInfo.InvariantCulture) ?? "", Escape(metric.Unit),
+                Escape(metric.Name), metric.Value is { } value && double.IsFinite(value) ? value.ToString("R", CultureInfo.InvariantCulture) : "", Escape(metric.Unit),
                 Escape(metric.Source), metric.Availability.ToString(), Escape(metric.Detail ?? "")).Append("\r\n");
         return csv.ToString();
     }
@@ -52,7 +59,7 @@ public sealed class HistoryBuffer
     private static string Escape(string value)
     {
         // Prevent spreadsheet formula execution when names originate in hardware/driver metadata.
-        if (value.Length > 0 && "=+-@\t\r".Contains(value[0])) value = "'" + value;
+        if (value.TrimStart().FirstOrDefault() is '=' or '+' or '-' or '@' or '\t' or '\r') value = "'" + value;
         return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 }

@@ -39,6 +39,10 @@ export function thermalLevel(metric, threshold = 85) {
 export function formatMetric(metric) {
   const value = availableValue(metric);
   if (value === null) return 'N/A';
+  if (['bytes', 'B'].includes(metric.unit)) {
+    const scale = value >= 1073741824 ? 1073741824 : 1048576;
+    return `${(value / scale).toLocaleString(undefined, { maximumFractionDigits: 1 })} ${scale === 1073741824 ? 'GiB' : 'MiB'}`;
+  }
   const digits = metric.unit === '%' || metric.unit === 'RPM' ? 0 : 1;
   return `${value.toLocaleString(undefined, { maximumFractionDigits: digits })}${metric.unit === '%' || metric.unit === '°C' ? '' : ' '}${metric.unit ?? ''}`.trim();
 }

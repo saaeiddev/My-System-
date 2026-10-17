@@ -27,6 +27,7 @@ public sealed class SensorProvider : ITelemetryProvider
         }
         var metrics = new List<Metric>();
         var gpus = new List<(IHardware Hardware, ISensor[] Sensors)>();
+        bool recover = false;
         if (_computer != null)
         {
             foreach (var hardware in _computer.Hardware)
@@ -49,6 +50,7 @@ public sealed class SensorProvider : ITelemetryProvider
                 }
                 catch (Exception error)
                 {
+                    recover = true;
                     _error = error.Message;
                     metrics.Add(Metric.Missing("sensor." + Uri.EscapeDataString(hardware.Identifier.ToString()), hardware.Name,
                         "", timestamp, Name, error.Message, MetricAvailability.Error));
@@ -67,6 +69,13 @@ public sealed class SensorProvider : ITelemetryProvider
             ("gpu.temperature", "GPU temperature", "°C"), ("gpu.memory.total", "GPU dedicated memory capacity", "B") })
             if (metrics.All(m => m.Id != id)) metrics.Add(Metric.Missing(id, name, unit, timestamp, Name,
                 _error ?? "N/A — Sensor Not Available. Hardware, driver, access permissions, or the optional PawnIO component may not support this sensor."));
+        if (recover)
+        {
+            // A device reset/disconnect can invalidate vendor API handles. Re-open after a quiet retry interval.
+            try { _computer?.Close(); } catch { }
+            _computer = null;
+            _retryAt = timestamp.AddSeconds(30);
+        }
         return metrics;
     }
 

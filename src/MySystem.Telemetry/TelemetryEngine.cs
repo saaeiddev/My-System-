@@ -16,7 +16,7 @@ public sealed class TelemetryEngine : IDisposable, IAsyncDisposable
     private IReadOnlyList<InventoryItem> _inventory = [new("System", "Inventory", "Reading Windows hardware inventory…")];
     private Task<IReadOnlyList<InventoryItem>>? _inventoryTask;
     private DateTimeOffset _nextInventory;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public TelemetryEngine(bool enableSensors = false)
     {
@@ -109,6 +109,10 @@ public sealed class TelemetryEngine : IDisposable, IAsyncDisposable
         try { foreach (var provider in _providers) { try { provider.Dispose(); } catch { } } }
         finally { _gate.Release(); }
         // Inventory is read-only and cooperative; do not block the UI waiting for a WMI timeout.
+        if (_inventoryTask is { } inventory)
+            _ = inventory.ContinueWith(task => { _ = task.Exception; _shutdown.Dispose(); }, CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        else _shutdown.Dispose();
     }
 
     public async ValueTask DisposeAsync()

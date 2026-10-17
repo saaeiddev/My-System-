@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -12,8 +12,8 @@ test('all six actual geometry groups have finite bounds and selectable parent me
   const temp = await mkdtemp(path.join(os.tmpdir(), 'my-system-model-'));
   try {
     const target = path.join(temp, 'model.mjs');
-    await build({ entryPoints: [new URL('../../../assets/3d-models/hardware.js', import.meta.url).pathname], outfile: target, platform: 'node', format: 'esm', bundle: true,
-      nodePaths: [new URL('../node_modules', import.meta.url).pathname] });
+    await build({ entryPoints: [fileURLToPath(new URL('../../../assets/3d-models/hardware.js', import.meta.url))], outfile: target, platform: 'node', format: 'esm', bundle: true,
+      nodePaths: [fileURLToPath(new URL('../node_modules', import.meta.url))] });
     const { createHardware } = await import(pathToFileURL(target));
     const model = createHardware();
     assert.deepEqual(Object.keys(model.groups).sort(), ['cooling', 'cpu', 'gpu', 'memory', 'motherboard', 'storage']);

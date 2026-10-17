@@ -9,7 +9,17 @@ if (-not(Test-Path $executable)) { throw 'Installed executable missing' }
 $app=Start-Process $executable -PassThru
 Start-Sleep -Seconds 15
 $app.Refresh()
-if ($app.HasExited) { throw "Application exited during launch: $($app.ExitCode)" }
+if ($app.HasExited) {
+    Start-Sleep -Seconds 2
+    $since=(Get-Date).AddMinutes(-5)
+    $events=Get-WinEvent -FilterHashtable @{ LogName='Application'; StartTime=$since } -ErrorAction SilentlyContinue |
+        Where-Object { $_.ProviderName -in @('Application Error','Windows Error Reporting','.NET Runtime') -or $_.Message -match 'MySystem.exe|Microsoft.UI.Xaml' } |
+        Select-Object -First 20 |
+        Format-List TimeCreated,Id,ProviderName,Message | Out-String -Width 240
+    $events | Set-Content artifacts/smoke/crash-events.txt
+    Write-Host "Recent Windows crash events: $events"
+    throw "Application exited during launch: $($app.ExitCode)"
+}
 if ($app.MainWindowHandle -eq 0) { throw 'Application did not create a native window' }
 $measurements=[ordered]@{timestamp=[DateTimeOffset]::UtcNow;processId=$app.Id;window=$app.MainWindowHandle.ToInt64();workingSetBytes=$app.WorkingSet64;cpuSeconds=$app.TotalProcessorTime.TotalSeconds;environment='GitHub Windows runner, no physical GPU qualification';durationSeconds=15}
 $measurements|ConvertTo-Json|Set-Content artifacts/smoke/launch.json

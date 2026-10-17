@@ -1,0 +1,55 @@
+name: Windows build, tests and installer
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.402
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/MySystem.Rendering/package-lock.json
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup --yes --no-progress }
+      - name: Test, publish and package
+        shell: pwsh
+        run: ./build/Build.ps1
+      - name: Verify installer and launch
+        shell: pwsh
+        run: ./build/SmokeTest.ps1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MySystem-windows-x64
+          path: |
+            artifacts/MySystem-Setup.exe
+            artifacts/MySystem-win-x64.zip
+            artifacts/SHA256SUMS.txt
+            artifacts/tests/
+            artifacts/smoke/
+          if-no-files-found: warn
+      - name: Publish verified build as prerelease
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag="v0.1.0-build.${{ github.run_number }}"
+          gh release create $tag artifacts/MySystem-Setup.exe artifacts/MySystem-win-x64.zip artifacts/SHA256SUMS.txt --target '${{ github.sha }}' --title "My System 0.1.0 — build ${{ github.run_number }}" --prerelease --notes-file documentation/RELEASE-NOTES.md
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

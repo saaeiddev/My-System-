@@ -1,0 +1,12 @@
+{
+  "graphite": { "color": "#1e252b", "roughness": 0.72, "metalness": 0.42 },
+  "pcb": { "color": "#192d2c", "roughness": 0.8, "metalness": 0.24 },
+  "titanium": { "color": "#a2acb4", "roughness": 0.36, "metalness": 0.86 },
+  "fins": { "color": "#697b85", "roughness": 0.45, "metalness": 0.8 },
+  "black": { "color": "#111719", "roughness": 0.82, "metalness": 0.12 },
+  "gold": { "color": "#bd9b58", "roughness": 0.37, "metalness": 0.8 },
+  "copper": { "color": "#bd7850", "roughness": 0.37, "metalness": 0.86 },
+  "teal": { "color": "#50d9c3", "roughness": 0.35, "metalness": 0.45 },
+  "amber": { "color": "#ffbc71", "roughness": 0.35, "metalness": 0.45 },
+  "white": { "color": "#d5e1e7", "roughness": 0.55, "metalness": 0.2 }
+}

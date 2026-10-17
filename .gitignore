@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/node_modules/
+src/MySystem.Rendering/dist/
+artifacts/
+.vs/
+*.user
+*.log
+TestResults/
+**/dotnet-home/

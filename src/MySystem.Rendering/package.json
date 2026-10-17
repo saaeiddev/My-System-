@@ -1,0 +1,13 @@
+{
+  "name": "my-system-rendering",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local, sensor-linked WebGL hardware inspector embedded in the native My System application",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": { "three": "0.186.1" },
+  "devDependencies": { "esbuild": "0.28.2" }
+}

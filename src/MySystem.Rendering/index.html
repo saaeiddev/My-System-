@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>My System · Hardware atlas</title>
+  <link rel="stylesheet" href="scene.css">
+  <script type="module" src="scene.js"></script>
+</head>
+<body>
+  <main id="atlas" aria-label="Interactive three dimensional hardware inspector">
+    <div id="viewport" tabindex="0" role="img" aria-label="Generic computer hardware model. Drag to orbit, right drag to pan, scroll to zoom. Use component buttons and toolbar for keyboard access."></div>
+    <header class="scene-heading">
+      <div><span class="eyebrow">SYSTEM ARCHITECTURE</span><h1>Hardware atlas<span class="accent-dot"></span></h1></div>
+      <span id="connection" class="connection">Waiting for native telemetry</span>
+    </header>
+    <nav class="components" aria-label="Inspect hardware component">
+      <button type="button" data-component="overview" aria-pressed="true"><span>00</span> Overview</button>
+      <button type="button" data-component="cpu" aria-pressed="false"><span>01</span> Processor</button>
+      <button type="button" data-component="gpu" aria-pressed="false"><span>02</span> Graphics</button>
+      <button type="button" data-component="memory" aria-pressed="false"><span>03</span> Memory</button>
+      <button type="button" data-component="storage" aria-pressed="false"><span>04</span> Storage</button>
+      <button type="button" data-component="motherboard" aria-pressed="false"><span>05</span> Mainboard</button>
+      <button type="button" data-component="cooling" aria-pressed="false"><span>06</span> Cooling</button>
+    </nav>
+    <aside class="inspection" aria-label="Selected component live measurement">
+      <span class="eyebrow" id="selection-index">FULL SYSTEM / 00</span>
+      <h2 id="selection-title">Built to explore.</h2>
+      <p id="selection-description">Select a component to inspect its live measurements.</p>
+      <div class="measurement"><span id="metric-label">CPU utilization</span><strong id="metric-value">N/A</strong></div>
+      <p class="availability" id="metric-status">Sensor Not Available</p>
+      <div class="thermal-legend"><i></i><span>Thermal accents follow measured °C and your alert thresholds.</span></div>
+    </aside>
+    <div class="model-note"><span class="crosshair">+</span> GENERIC ATX ASSEMBLY <span>Illustrative geometry · not a hardware scan</span></div>
+    <div class="toolbar" role="toolbar" aria-label="3D view controls">
+      <button type="button" id="reset" title="Reset orbit and show all components (R)"><span aria-hidden="true">↺</span> Reset</button>
+      <button type="button" id="isolate" aria-pressed="false" disabled title="Show only the selected component (I)"><span aria-hidden="true">⌗</span> Isolate</button>
+      <button type="button" id="explode" aria-pressed="false" title="Lift CPU cooler and processor lid"><span aria-hidden="true">↑</span> Explode CPU</button>
+      <span class="toolbar-separator"></span>
+      <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+      <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+      <button type="button" id="pause" aria-pressed="false" title="Pause 3D rendering"><span aria-hidden="true">Ⅱ</span> Pause</button>
+    </div>
+    <footer><span>DRAG TO ORBIT <b>·</b> SCROLL TO ZOOM <b>·</b> RIGHT DRAG TO PAN</span><span id="render-status">ON-DEMAND · 30 FPS CAP</span></footer>
+    <p id="error" class="error" hidden>3D acceleration is unavailable. Native monitoring continues. Update your graphics driver and restart My System to try again.</p>
+    <span id="announcement" class="sr-only" role="status" aria-live="polite"></span>
+  </main>
+</body>
+</html>

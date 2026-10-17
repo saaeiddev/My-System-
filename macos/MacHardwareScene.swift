@@ -93,6 +93,7 @@ enum MacHardwareModel {
         return m
     }
 
+    @discardableResult
     static func box(_ parent: SCNNode, _ name: String, w: CGFloat, h: CGFloat, d: CGFloat,
                     at x: Float, _ y: Float, _ z: Float, color: UInt32, metal: CGFloat = 0.6) -> SCNNode {
         let g = SCNBox(width: w, height: h, length: d, chamferRadius: min(w,h,d) * 0.07)
@@ -104,6 +105,7 @@ enum MacHardwareModel {
         return n
     }
 
+    @discardableResult
     static func cylinder(_ parent: SCNNode, _ name: String, radius: CGFloat, h: CGFloat,
                          at x: Float, _ y: Float, _ z: Float, color: UInt32) -> SCNNode {
         let g = SCNCylinder(radius: radius, height: h)
@@ -192,7 +194,7 @@ enum MacHardwareModel {
             let angle = Float(i)*Float.pi*2/7
             blade.position = SCNVector3(-3.55 + sin(angle)*0.30, 0.48,
                                         -2.25 + cos(angle)*0.30)
-            blade.eulerAngles.y = angle
+            blade.eulerAngles.y = CGFloat(angle)
         }
 
         let gpu = group(scene, "gpu")
@@ -207,7 +209,7 @@ enum MacHardwareModel {
                 let angle = Float(b)*Float.pi*2/7
                 let blade=box(gpu,"blade",w:0.12,h:0.04,d:0.34,
                     at:x+sin(angle)*0.31,1.04,1.25+cos(angle)*0.31,color:0x4c5e68)
-                blade.eulerAngles.y=angle
+                blade.eulerAngles.y=CGFloat(angle)
             }
         }
         for i in 0..<14 {
@@ -274,14 +276,16 @@ enum MacHardwareModel {
         key.castsShadow = true
         key.shadowRadius = 8
         key.shadowSampleCount = 8
-        let keyNode = SCNNode(light:key)
+        let keyNode = SCNNode()
+        keyNode.light = key
         keyNode.position = SCNVector3(-4,11,11)
         scene.rootNode.addChildNode(keyNode)
         let fill = SCNLight()
         fill.type = .omni
         fill.color = NSColor(calibratedRed: 0.31, green: 0.89, blue: 0.79, alpha: 1)
         fill.intensity = 750
-        let fillNode = SCNNode(light:fill)
+        let fillNode = SCNNode()
+        fillNode.light = fill
         fillNode.position = SCNVector3(7,6,-6)
         scene.rootNode.addChildNode(fillNode)
 
